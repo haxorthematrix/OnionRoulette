@@ -23,14 +23,30 @@ for i in input_file.readlines():
           print(r.url, r.status_code)
      except requests.exceptions.Timeout:
           # Maybe set up for a retry, or continue in a retry loop
-          print(i, 'timed out.')
+          print(i, 'timed out')
      except requests.exceptions.TooManyRedirects:
           # Tell the user their URL was bad and try a different one
-          print(i, 'had too many redirects.')
+          print(i, 'had too many redirects')
      except requests.exceptions.RequestException as e:
           # catastrophic error. bail.
           print(i, "caused a catastrophic error with python requests. I'm out!")
           print(e)
           sys.exit(1)
+     except requests.ConnectionError as exc:
+          # filtering DNS lookup error from other connection errors
+          # (until https://github.com/shazow/urllib3/issues/1003 is resolved)
+          if type(exc.message) != requests.packages.urllib3.exceptions.MaxRetryError:
+               raise
+          reason = exc.message.reason    
+          if type(reason) != requests.packages.urllib3.exceptions.NewConnectionError:
+               raise
+          if type(reason.message) != str:
+               raise
+          if ("[Errno 11001] getaddrinfo failed" in reason.message or     # Windows
+               "[Errno -2] Name or service not known" in reason.message or # Linux
+               "[Errno 8] nodename nor servname " in reason.message):      # OS X
+               message = 'DNSLookupError'
+          else:
+               raise
 
 print('Finished. Thanks for playing .onion roulette.')
